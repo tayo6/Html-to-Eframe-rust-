@@ -1,5 +1,8 @@
 use eframe::egui;
 
+#[cfg(target_arch = "wasm32")]
+use eframe::wasm_bindgen::JsCast;
+
 // ==========================================================================
 // TARGET ENTRYPOINTS (Native vs WebAssembly)
 // ==========================================================================
@@ -93,20 +96,21 @@ impl eframe::App for DelayVstApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint();
 
-        let time = ctx.input(|i| i.time);
-        let target_in = (0.50 + (time * 1.8).sin().abs() * 0.22 + (time * 3.3).cos().abs() * 0.12).clamp(0.0, 1.0);
-        let target_out = (0.45 + (time * 1.3).cos().abs() * 0.32 + (time * 4.2).sin().abs() * 0.15).clamp(0.0, 1.0);
+        // Cast time to f32 to align float operations
+        let time = ctx.input(|i| i.time) as f32;
+        let target_in = (0.50f32 + (time * 1.8f32).sin().abs() * 0.22f32 + (time * 3.3f32).cos().abs() * 0.12f32).clamp(0.0f32, 1.0f32);
+        let target_out = (0.45f32 + (time * 1.3f32).cos().abs() * 0.32f32 + (time * 4.2f32).sin().abs() * 0.15f32).clamp(0.0f32, 1.0f32);
 
         if target_in > self.active_level_in {
-            self.active_level_in += (target_in - self.active_level_in) * 0.35;
+            self.active_level_in += (target_in - self.active_level_in) * 0.35f32;
         } else {
-            self.active_level_in += (target_in - self.active_level_in) * 0.12;
+            self.active_level_in += (target_in - self.active_level_in) * 0.12f32;
         }
 
         if target_out > self.active_level_out {
-            self.active_level_out += (target_out - self.active_level_out) * 0.35;
+            self.active_level_out += (target_out - self.active_level_out) * 0.35f32;
         } else {
-            self.active_level_out += (target_out - self.active_level_out) * 0.12;
+            self.active_level_out += (target_out - self.active_level_out) * 0.12f32;
         }
 
         egui::CentralPanel::default()
@@ -150,7 +154,7 @@ impl eframe::App for DelayVstApp {
     }
 }
 
-fn draw_top_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &DelayVstApp, time: f64) {
+fn draw_top_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &DelayVstApp, time: f32) {
     let painter = ui.painter();
     painter.rect_filled(
         rect,
@@ -168,7 +172,7 @@ fn draw_top_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &DelayVstApp, time: 
         logo_pos,
         egui::Align2::LEFT_TOP,
         "DELAY ▼",
-        egui::FontId::proportional(13.0).with_bold(true),
+        egui::FontId::proportional(13.0),
         egui::Color32::from_rgb(44, 229, 196),
     );
 
@@ -177,7 +181,7 @@ fn draw_top_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &DelayVstApp, time: 
         rect.min + egui::vec2(x + shift_x, y + offset_y)
     };
 
-    let left_offset_y = (time * 1.5).sin() as f32 * 4.0;
+    let left_offset_y = (time * 1.5f32).sin() * 4.0f32;
     let stroke_large = egui::Stroke::new(1.8, egui::Color32::from_rgb(44, 229, 196));
 
     let p_t1 = map_pt(150.0, 38.0, left_offset_y);
@@ -205,7 +209,7 @@ fn draw_top_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &DelayVstApp, time: 
     painter.line_segment([p_t3, p_b3], stroke_large);
     painter.line_segment([p_t4, p_b4], stroke_large);
 
-    let right_offset_y = ((time - 3.0) * 1.5).sin() as f32 * 4.0;
+    let right_offset_y = ((time - 3.0f32) * 1.5f32).sin() * 4.0f32;
     let stroke_small = egui::Stroke::new(1.5, egui::Color32::from_rgb(44, 229, 196));
 
     let p_st1 = map_pt(255.0, 54.0, right_offset_y);
@@ -258,7 +262,7 @@ fn draw_mid_bar(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp) {
         rect.left_top() + egui::vec2(24.0, 19.0),
         egui::Align2::LEFT_CENTER,
         "STUDIO",
-        egui::FontId::proportional(9.0).with_bold(true),
+        egui::FontId::proportional(9.0),
         studio_color,
     );
 
@@ -274,7 +278,7 @@ fn draw_mid_bar(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp) {
         rect.left_top() + egui::vec2(116.0, 19.0),
         egui::Align2::LEFT_CENTER,
         "CREATIVE",
-        egui::FontId::proportional(9.0).with_bold(true),
+        egui::FontId::proportional(9.0),
         creative_color,
     );
 
@@ -291,14 +295,14 @@ fn draw_mid_bar(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp) {
         rect.right_top() + egui::vec2(-48.0, 14.0),
         egui::Align2::RIGHT_CENTER,
         "AUTO",
-        egui::FontId::proportional(8.0).with_bold(true),
+        egui::FontId::proportional(8.0),
         egui::Color32::from_rgb(74, 85, 104),
     );
     painter.text(
         rect.right_top() + egui::vec2(-48.0, 24.0),
         egui::Align2::RIGHT_CENTER,
         "GAIN",
-        egui::FontId::proportional(8.0).with_bold(true),
+        egui::FontId::proportional(8.0),
         egui::Color32::from_rgb(74, 85, 104),
     );
 
@@ -325,21 +329,21 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
     let tempo_center = egui::pos2(rect.left() + 80.0, rect.top() + 65.0);
     let tempo_rect = egui::Rect::from_center_size(tempo_center, egui::vec2(66.0, 66.0));
 
-    let tempo_response = ui.allocate_rect(tempo_rect, egui::Sense::click_drag());
+    let tempo_response = ui.allocate_rect(tempo_rect, egui::Sense::click_and_drag());
     if tempo_response.dragged() {
         let dy = tempo_response.drag_delta().y;
-        if dy.abs() > 1.5 {
+        if dy.abs() > 1.5f32 {
             app.tempo_drag_accumulator += dy;
-            if app.tempo_drag_accumulator > 15.0 {
+            if app.tempo_drag_accumulator > 15.0f32 {
                 if app.tempo_index > 0 { app.tempo_index -= 1; }
-                app.tempo_drag_accumulator = 0.0;
-            } else if app.tempo_drag_accumulator < -15.0 {
+                app.tempo_drag_accumulator = 0.0f32;
+            } else if app.tempo_drag_accumulator < -15.0f32 {
                 if app.tempo_index < tempo_values.len() - 1 { app.tempo_index += 1; }
-                app.tempo_drag_accumulator = 0.0;
+                app.tempo_drag_accumulator = 0.0f32;
             }
         }
     } else {
-        app.tempo_drag_accumulator = 0.0;
+        app.tempo_drag_accumulator = 0.0f32;
     }
 
     if tempo_response.hovered() {
@@ -352,7 +356,7 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
     let stroke_color = egui::Color32::from_rgb(44, 229, 196);
 
     let start_angle = -std::f32::consts::FRAC_PI_2;
-    let sweep_angle = progress * 2.0 * std::f32::consts::PI;
+    let sweep_angle = progress * 2.0f32 * std::f32::consts::PI;
     let num_segments = 32;
     let mut last_point = tempo_center + egui::vec2(start_angle.cos(), start_angle.sin()) * 28.0;
     for i in 1..=num_segments {
@@ -367,7 +371,7 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         tempo_center,
         egui::Align2::CENTER_CENTER,
         tempo_values[app.tempo_index],
-        egui::FontId::proportional(15.0).with_bold(true),
+        egui::FontId::proportional(15.0),
         egui::Color32::from_rgb(45, 55, 72),
     );
 
@@ -375,16 +379,16 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         tempo_center + egui::vec2(0.0, 48.0),
         egui::Align2::CENTER_CENTER,
         "TEMPO",
-        egui::FontId::proportional(9.0).with_bold(true),
+        egui::FontId::proportional(9.0),
         egui::Color32::from_rgb(113, 128, 150),
     );
 
     let regen_center = egui::pos2(rect.left() + 200.0, rect.top() + 65.0);
     let regen_rect = egui::Rect::from_center_size(regen_center, egui::vec2(52.0, 52.0));
-    let regen_response = ui.allocate_rect(regen_rect, egui::Sense::click_drag());
+    let regen_response = ui.allocate_rect(regen_rect, egui::Sense::click_and_drag());
     if regen_response.dragged() {
         let dy = regen_response.drag_delta().y;
-        app.regen_value = (app.regen_value - dy * 0.005).clamp(0.0, 1.0);
+        app.regen_value = (app.regen_value - dy * 0.005f32).clamp(0.0f32, 1.0f32);
     }
     if regen_response.hovered() {
         ctx.set_cursor_icon(if regen_response.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
@@ -394,16 +398,16 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         regen_center + egui::vec2(0.0, 48.0),
         egui::Align2::CENTER_CENTER,
         "REGEN",
-        egui::FontId::proportional(9.0).with_bold(true),
+        egui::FontId::proportional(9.0),
         egui::Color32::from_rgb(113, 128, 150),
     );
 
     let mix_center = egui::pos2(rect.left() + 325.0, rect.top() + 65.0);
     let mix_rect = egui::Rect::from_center_size(mix_center, egui::vec2(68.0, 68.0));
-    let mix_response = ui.allocate_rect(mix_rect, egui::Sense::click_drag());
+    let mix_response = ui.allocate_rect(mix_rect, egui::Sense::click_and_drag());
     if mix_response.dragged() {
         let dy = mix_response.drag_delta().y;
-        app.mix_value = (app.mix_value - dy * 0.005).clamp(0.0, 1.0);
+        app.mix_value = (app.mix_value - dy * 0.005f32).clamp(0.0f32, 1.0f32);
     }
     if mix_response.hovered() {
         ctx.set_cursor_icon(if mix_response.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
@@ -413,7 +417,7 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         mix_center + egui::vec2(0.0, 48.0),
         egui::Align2::CENTER_CENTER,
         "MIX",
-        egui::FontId::proportional(9.0).with_bold(true),
+        egui::FontId::proportional(9.0),
         egui::Color32::from_rgb(113, 128, 150),
     );
 
@@ -503,7 +507,7 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         );
         p.rect_filled(meter_rect, egui::Rounding::same(2.0), egui::Color32::from_rgb(226, 232, 240));
 
-        let lit_limit = (level * 24.0).round() as usize;
+        let lit_limit = (level * 24.0f32).round() as usize;
         let led_w = 7.0;
         let led_h = 2.0;
         let gap = 1.5;
@@ -533,7 +537,7 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
             egui::pos2(meter_cx, rect.top() + 112.0),
             egui::Align2::CENTER_CENTER,
             label,
-            egui::FontId::proportional(8.0).with_bold(true),
+            egui::FontId::proportional(8.0),
             egui::Color32::from_rgb(113, 128, 150),
         );
     };
@@ -543,10 +547,10 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
 
     let out_knob_center = egui::pos2(cx, rect.top() + 175.0);
     let out_knob_rect = egui::Rect::from_center_size(out_knob_center, egui::vec2(52.0, 52.0));
-    let out_knob_response = ui.allocate_rect(out_knob_rect, egui::Sense::click_drag());
+    let out_knob_response = ui.allocate_rect(out_knob_rect, egui::Sense::click_and_drag());
     if out_knob_response.dragged() {
         let dy = out_knob_response.drag_delta().y;
-        app.output_value = (app.output_value - dy * 0.005).clamp(0.0, 1.0);
+        app.output_value = (app.output_value - dy * 0.005f32).clamp(0.0f32, 1.0f32);
     }
     if out_knob_response.hovered() {
         ctx.set_cursor_icon(if out_knob_response.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
@@ -556,7 +560,7 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         out_knob_center + egui::vec2(0.0, 48.0),
         egui::Align2::CENTER_CENTER,
         "OUTPUT",
-        egui::FontId::proportional(9.0).with_bold(true),
+        egui::FontId::proportional(9.0),
         egui::Color32::from_rgb(113, 128, 150),
     );
 }
@@ -616,7 +620,7 @@ where
         egui::pos2(rect.center().x, rect.bottom() - 10.0),
         egui::Align2::CENTER_CENTER,
         label,
-        egui::FontId::proportional(8.0).with_bold(true),
+        egui::FontId::proportional(8.0),
         label_color,
     );
 }
