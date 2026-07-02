@@ -1,8 +1,5 @@
 use eframe::egui;
 
-#[cfg(target_arch = "wasm32")]
-use eframe::wasm_bindgen::JsCast;
-
 // ==========================================================================
 // TARGET ENTRYPOINTS (Native vs WebAssembly)
 // ==========================================================================
@@ -26,24 +23,14 @@ fn main() -> Result<(), eframe::Error> {
 // WebAssembly Web Page main execution
 #[cfg(target_arch = "wasm32")]
 fn main() {
-    // Redirect log levels to browser console
     eframe::WebLogger::init(log::LevelFilter::Debug).ok();
 
     let web_options = eframe::WebOptions::default();
 
     wasm_bindgen_futures::spawn_local(async {
-        // Look up canvas item with id "the_canvas_id"
-        let window = web_sys::window().expect("no global window exists");
-        let document = window.document().expect("should have a document on window");
-        let canvas = document
-            .get_element_by_id("the_canvas_id")
-            .expect("failed to find canvas element")
-            .dyn_into::<web_sys::HtmlCanvasElement>()
-            .expect("canvas element is not HtmlCanvasElement");
-
         eframe::WebRunner::new()
             .start(
-                canvas,
+                "the_canvas_id", // Passes canvas ID directly
                 web_options,
                 Box::new(|_cc| Box::new(DelayVstApp::default())),
             )
@@ -96,7 +83,6 @@ impl eframe::App for DelayVstApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint();
 
-        // Cast time to f32 to align float operations
         let time = ctx.input(|i| i.time) as f32;
         let target_in = (0.50f32 + (time * 1.8f32).sin().abs() * 0.22f32 + (time * 3.3f32).cos().abs() * 0.12f32).clamp(0.0f32, 1.0f32);
         let target_out = (0.45f32 + (time * 1.3f32).cos().abs() * 0.32f32 + (time * 4.2f32).sin().abs() * 0.15f32).clamp(0.0f32, 1.0f32);
@@ -154,7 +140,7 @@ impl eframe::App for DelayVstApp {
     }
 }
 
-fn draw_top_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &DelayVstApp, time: f32) {
+fn draw_top_panel(ui: &mut egui::Ui, rect: egui::Rect, _app: &DelayVstApp, time: f32) {
     let painter = ui.painter();
     painter.rect_filled(
         rect,
@@ -239,13 +225,7 @@ fn draw_top_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &DelayVstApp, time: 
 }
 
 fn draw_mid_bar(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp) {
-    let painter = ui.painter();
-    painter.rect_filled(rect, egui::Rounding::ZERO, egui::Color32::from_rgb(241, 243, 246));
-    painter.line_segment(
-        [rect.left_bottom(), rect.right_bottom()],
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(225, 228, 232)),
-    );
-
+    // 1. Perform UI actions and layout modifications first
     let toggle_area = egui::Rect::from_min_max(
         rect.left_top() + egui::vec2(24.0, 5.0),
         rect.left_top() + egui::vec2(180.0, 33.0),
@@ -254,6 +234,24 @@ fn draw_mid_bar(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp) {
     if toggle_response.clicked() {
         app.studio_mode = !app.studio_mode;
     }
+
+    let auto_gain_area = egui::Rect::from_min_max(
+        rect.right_top() + egui::vec2(-110.0, 5.0),
+        rect.right_top() + egui::vec2(-24.0, 33.0),
+    );
+    let ag_response = ui.allocate_rect(auto_gain_area, egui::Sense::click());
+    if ag_response.clicked() {
+        app.auto_gain = !app.auto_gain;
+    }
+
+    // 2. Fetch immutable painter after allocations are finished
+    let painter = ui.painter();
+
+    painter.rect_filled(rect, egui::Rounding::ZERO, egui::Color32::from_rgb(241, 243, 246));
+    painter.line_segment(
+        [rect.left_bottom(), rect.right_bottom()],
+        egui::Stroke::new(1.0, egui::Color32::from_rgb(225, 228, 232)),
+    );
 
     let studio_color = if app.studio_mode { egui::Color32::from_rgb(46, 53, 64) } else { egui::Color32::from_rgb(138, 148, 166) };
     let creative_color = if !app.studio_mode { egui::Color32::from_rgb(46, 53, 64) } else { egui::Color32::from_rgb(138, 148, 166) };
@@ -282,15 +280,6 @@ fn draw_mid_bar(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp) {
         creative_color,
     );
 
-    let auto_gain_area = egui::Rect::from_min_max(
-        rect.right_top() + egui::vec2(-110.0, 5.0),
-        rect.right_top() + egui::vec2(-24.0, 33.0),
-    );
-    let ag_response = ui.allocate_rect(auto_gain_area, egui::Sense::click());
-    if ag_response.clicked() {
-        app.auto_gain = !app.auto_gain;
-    }
-
     painter.text(
         rect.right_top() + egui::vec2(-48.0, 14.0),
         egui::Align2::RIGHT_CENTER,
@@ -316,19 +305,9 @@ fn draw_mid_bar(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp) {
 }
 
 fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp, ctx: &egui::Context) {
-    let painter = ui.painter();
-    painter.rect_filled(rect, egui::Rounding { nw: 0.0, ne: 0.0, sw: 8.0, se: 8.0 }, egui::Color32::from_rgb(247, 249, 250));
-
-    let divider_x = rect.left() + 413.0;
-    painter.line_segment(
-        [egui::pos2(divider_x, rect.top()), egui::pos2(divider_x, rect.bottom())],
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(225, 228, 232)),
-    );
-
-    let tempo_values = ["1/32", "1/16", "1/8", "1/4", "1/2", "1/1"];
+    // 1. Perform all mutable allocations first
     let tempo_center = egui::pos2(rect.left() + 80.0, rect.top() + 65.0);
     let tempo_rect = egui::Rect::from_center_size(tempo_center, egui::vec2(66.0, 66.0));
-
     let tempo_response = ui.allocate_rect(tempo_rect, egui::Sense::click_and_drag());
     if tempo_response.dragged() {
         let dy = tempo_response.drag_delta().y;
@@ -338,7 +317,7 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
                 if app.tempo_index > 0 { app.tempo_index -= 1; }
                 app.tempo_drag_accumulator = 0.0f32;
             } else if app.tempo_drag_accumulator < -15.0f32 {
-                if app.tempo_index < tempo_values.len() - 1 { app.tempo_index += 1; }
+                if app.tempo_index < tempo_values_len() { app.tempo_index += 1; }
                 app.tempo_drag_accumulator = 0.0f32;
             }
         }
@@ -346,10 +325,86 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         app.tempo_drag_accumulator = 0.0f32;
     }
 
+    let regen_center = egui::pos2(rect.left() + 200.0, rect.top() + 65.0);
+    let regen_rect = egui::Rect::from_center_size(regen_center, egui::vec2(52.0, 52.0));
+    let regen_response = ui.allocate_rect(regen_rect, egui::Sense::click_and_drag());
+    if regen_response.dragged() {
+        let dy = regen_response.drag_delta().y;
+        app.regen_value = (app.regen_value - dy * 0.005f32).clamp(0.0f32, 1.0f32);
+    }
+
+    let mix_center = egui::pos2(rect.left() + 325.0, rect.top() + 65.0);
+    let mix_rect = egui::Rect::from_center_size(mix_center, egui::vec2(68.0, 68.0));
+    let mix_response = ui.allocate_rect(mix_rect, egui::Sense::click_and_drag());
+    if mix_response.dragged() {
+        let dy = mix_response.drag_delta().y;
+        app.mix_value = (app.mix_value - dy * 0.005f32).clamp(0.0f32, 1.0f32);
+    }
+
+    let btn_width = 85.0;
+    let btn_height = 64.0;
+    let btn_y = rect.top() + 175.0;
+
+    let bright_rect = egui::Rect::from_center_size(egui::pos2(rect.left() + 90.0, btn_y), egui::vec2(btn_width, btn_height));
+    let bright_response = ui.allocate_rect(bright_rect, egui::Sense::click());
+    if bright_response.clicked() {
+        app.brightness_active = !app.brightness_active;
+    }
+
+    let color_rect = egui::Rect::from_center_size(egui::pos2(rect.left() + 205.0, btn_y), egui::vec2(btn_width, btn_height));
+    let color_response = ui.allocate_rect(color_rect, egui::Sense::click());
+    if color_response.clicked() {
+        app.color_active = !app.color_active;
+    }
+
+    let sparkle_rect = egui::Rect::from_center_size(egui::pos2(rect.left() + 320.0, btn_y), egui::vec2(btn_width, btn_height));
+    let sparkle_response = ui.allocate_rect(sparkle_rect, egui::Sense::click());
+    if sparkle_response.clicked() {
+        app.sparkle_active = !app.sparkle_active;
+    }
+
+    let cx = rect.left() + 413.0 + 58.5;
+    let out_knob_center = egui::pos2(cx, rect.top() + 175.0);
+    let out_knob_rect = egui::Rect::from_center_size(out_knob_center, egui::vec2(52.0, 52.0));
+    let out_knob_response = ui.allocate_rect(out_knob_rect, egui::Sense::click_and_drag());
+    if out_knob_response.dragged() {
+        let dy = out_knob_response.drag_delta().y;
+        app.output_value = (app.output_value - dy * 0.005f32).clamp(0.0f32, 1.0f32);
+    }
+
+    // Set cursor styles based on hovered states
     if tempo_response.hovered() {
         ctx.set_cursor_icon(egui::CursorIcon::ResizeVertical);
     }
+    if regen_response.hovered() {
+        ctx.set_cursor_icon(if regen_response.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
+    }
+    if mix_response.hovered() {
+        ctx.set_cursor_icon(if mix_response.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
+    }
+    if bright_response.hovered() {
+        ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    if color_response.hovered() {
+        ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    if sparkle_response.hovered() {
+        ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    if out_knob_response.hovered() {
+        ctx.set_cursor_icon(if out_knob_response.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
+    }
 
+    // 2. Fetch immutable painter after allocations are finished
+    let painter = ui.painter();
+
+    painter.rect_filled(rect, egui::Rounding { nw: 0.0, ne: 0.0, sw: 8.0, se: 8.0 }, egui::Color32::from_rgb(247, 249, 250));
+    painter.line_segment(
+        [egui::pos2(divider_x, rect.top()), egui::pos2(divider_x, rect.bottom())],
+        egui::Stroke::new(1.0, egui::Color32::from_rgb(225, 228, 232)),
+    );
+
+    let tempo_values = ["1/32", "1/16", "1/8", "1/4", "1/2", "1/1"];
     painter.circle_stroke(tempo_center, 28.0, egui::Stroke::new(3.5, egui::Color32::from_rgb(226, 232, 240)));
 
     let progress = (app.tempo_index + 1) as f32 / tempo_values.len() as f32;
@@ -383,16 +438,6 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         egui::Color32::from_rgb(113, 128, 150),
     );
 
-    let regen_center = egui::pos2(rect.left() + 200.0, rect.top() + 65.0);
-    let regen_rect = egui::Rect::from_center_size(regen_center, egui::vec2(52.0, 52.0));
-    let regen_response = ui.allocate_rect(regen_rect, egui::Sense::click_and_drag());
-    if regen_response.dragged() {
-        let dy = regen_response.drag_delta().y;
-        app.regen_value = (app.regen_value - dy * 0.005f32).clamp(0.0f32, 1.0f32);
-    }
-    if regen_response.hovered() {
-        ctx.set_cursor_icon(if regen_response.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
-    }
     draw_knob(painter, regen_center, 22.0, app.regen_value);
     painter.text(
         regen_center + egui::vec2(0.0, 48.0),
@@ -402,16 +447,6 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         egui::Color32::from_rgb(113, 128, 150),
     );
 
-    let mix_center = egui::pos2(rect.left() + 325.0, rect.top() + 65.0);
-    let mix_rect = egui::Rect::from_center_size(mix_center, egui::vec2(68.0, 68.0));
-    let mix_response = ui.allocate_rect(mix_rect, egui::Sense::click_and_drag());
-    if mix_response.dragged() {
-        let dy = mix_response.drag_delta().y;
-        app.mix_value = (app.mix_value - dy * 0.005f32).clamp(0.0f32, 1.0f32);
-    }
-    if mix_response.hovered() {
-        ctx.set_cursor_icon(if mix_response.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
-    }
     draw_knob(painter, mix_center, 29.0, app.mix_value);
     painter.text(
         mix_center + egui::vec2(0.0, 48.0),
@@ -421,18 +456,6 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         egui::Color32::from_rgb(113, 128, 150),
     );
 
-    let btn_width = 85.0;
-    let btn_height = 64.0;
-    let btn_y = rect.top() + 175.0;
-
-    let bright_rect = egui::Rect::from_center_size(egui::pos2(rect.left() + 90.0, btn_y), egui::vec2(btn_width, btn_height));
-    let bright_response = ui.allocate_rect(bright_rect, egui::Sense::click());
-    if bright_response.clicked() {
-        app.brightness_active = !app.brightness_active;
-    }
-    if bright_response.hovered() {
-        ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
-    }
     draw_filter_button(painter, bright_rect, "BRIGHTNESS", app.brightness_active, |p, center| {
         let radius = 12.0;
         let stroke_stripe = egui::Stroke::new(1.3, if app.brightness_active { egui::Color32::from_rgb(44, 229, 196) } else { egui::Color32::from_rgb(113, 128, 150) });
@@ -450,14 +473,6 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         p.line_segment([center + egui::vec2(0.0, -radius), center + egui::vec2(0.0, radius)], stroke_stripe);
     });
 
-    let color_rect = egui::Rect::from_center_size(egui::pos2(rect.left() + 205.0, btn_y), egui::vec2(btn_width, btn_height));
-    let color_response = ui.allocate_rect(color_rect, egui::Sense::click());
-    if color_response.clicked() {
-        app.color_active = !app.color_active;
-    }
-    if color_response.hovered() {
-        ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
-    }
     draw_filter_button(painter, color_rect, "COLOR", app.color_active, |p, center| {
         let stroke = egui::Stroke::new(1.4, if app.color_active { egui::Color32::from_rgb(44, 229, 196) } else { egui::Color32::from_rgb(113, 128, 150) });
         let r_circle = 5.0;
@@ -469,14 +484,6 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         }
     });
 
-    let sparkle_rect = egui::Rect::from_center_size(egui::pos2(rect.left() + 320.0, btn_y), egui::vec2(btn_width, btn_height));
-    let sparkle_response = ui.allocate_rect(sparkle_rect, egui::Sense::click());
-    if sparkle_response.clicked() {
-        app.sparkle_active = !app.sparkle_active;
-    }
-    if sparkle_response.hovered() {
-        ctx.set_cursor_icon(egui::CursorIcon::PointingHand);
-    }
     draw_filter_button(painter, sparkle_rect, "SPARKLE", app.sparkle_active, |p, center| {
         let color = if app.sparkle_active { egui::Color32::from_rgb(44, 229, 196) } else { egui::Color32::from_rgb(113, 128, 150) };
 
@@ -497,8 +504,6 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         draw_star(p, center + egui::vec2(-8.0, -6.0), 2.5, 0.8);
         draw_star(p, center + egui::vec2(8.0, -7.0), 2.5, 0.8);
     });
-
-    let cx = rect.left() + 413.0 + 58.5;
 
     let draw_vu_meter = |p: &egui::Painter, meter_cx: f32, level: f32, label: &str| {
         let meter_rect = egui::Rect::from_center_size(
@@ -545,16 +550,6 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
     draw_vu_meter(painter, cx - 18.0, app.active_level_in, "IN");
     draw_vu_meter(painter, cx + 18.0, app.active_level_out, "OUT");
 
-    let out_knob_center = egui::pos2(cx, rect.top() + 175.0);
-    let out_knob_rect = egui::Rect::from_center_size(out_knob_center, egui::vec2(52.0, 52.0));
-    let out_knob_response = ui.allocate_rect(out_knob_rect, egui::Sense::click_and_drag());
-    if out_knob_response.dragged() {
-        let dy = out_knob_response.drag_delta().y;
-        app.output_value = (app.output_value - dy * 0.005f32).clamp(0.0f32, 1.0f32);
-    }
-    if out_knob_response.hovered() {
-        ctx.set_cursor_icon(if out_knob_response.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
-    }
     draw_knob(painter, out_knob_center, 22.0, app.output_value);
     painter.text(
         out_knob_center + egui::vec2(0.0, 48.0),
@@ -563,6 +558,11 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         egui::FontId::proportional(9.0),
         egui::Color32::from_rgb(113, 128, 150),
     );
+}
+
+// Inline constant lengths mapping helpers
+fn tempo_values_len() -> usize {
+    5 // Last index of ["1/32", "1/16", "1/8", "1/4", "1/2", "1/1"] is 5
 }
 
 fn draw_knob(painter: &egui::Painter, center: egui::Pos2, radius: f32, val: f32) {
