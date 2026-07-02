@@ -44,9 +44,9 @@ jobs:
         uses: actions/configure-pages@v4
 
       # Build with Trunk, specifying the correct subdirectory path for GH Pages
-      - name: Build WASM Web Application
+- name: Build WASM Web Application
         run: |
-          trunk build --release --public-url "${{ steps.pages.base_path }}/"
+          trunk build --release --public-url "./"
 
       - name: Upload Deployment Artifacts
         uses: actions/upload-pages-artifact@v3
