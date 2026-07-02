@@ -46,7 +46,7 @@ jobs:
       # Build with Trunk, specifying the correct subdirectory path for GH Pages
 - name: Build WASM Web Application
         run: |
-          trunk build --release --public-url "./"
+          trunk build --release --public-url "/Html-to-Eframe-rust-/"
 
       - name: Upload Deployment Artifacts
         uses: actions/upload-pages-artifact@v3
