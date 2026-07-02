@@ -305,6 +305,10 @@ fn draw_mid_bar(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp) {
 }
 
 fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp, ctx: &egui::Context) {
+    // Coordinate dimensions
+    let divider_x = rect.left() + 413.0;
+    let cx = divider_x + 58.5;
+
     // 1. Perform all mutable allocations first
     let tempo_center = egui::pos2(rect.left() + 80.0, rect.top() + 65.0);
     let tempo_rect = egui::Rect::from_center_size(tempo_center, egui::vec2(66.0, 66.0));
@@ -363,7 +367,6 @@ fn draw_bottom_panel(ui: &mut egui::Ui, rect: egui::Rect, app: &mut DelayVstApp,
         app.sparkle_active = !app.sparkle_active;
     }
 
-    let cx = rect.left() + 413.0 + 58.5;
     let out_knob_center = egui::pos2(cx, rect.top() + 175.0);
     let out_knob_rect = egui::Rect::from_center_size(out_knob_center, egui::vec2(52.0, 52.0));
     let out_knob_response = ui.allocate_rect(out_knob_rect, egui::Sense::click_and_drag());
