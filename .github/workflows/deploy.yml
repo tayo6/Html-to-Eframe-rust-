@@ -1,0 +1,58 @@
+name: Deploy Web VST
+
+on:
+  push:
+    branches:
+      - main  # Set this to your repository's primary branch name
+
+# Set the GITHUB_TOKEN permissions to allow native GitHub Pages deployments
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      # Cache the cargo dependencies to speed up subsequent workflow runs
+      - name: Cache Cargo Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Trunk (Precompiled Binary)
+        run: |
+          wget -qO- https://github.com/trunk-rs/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          sudo mv trunk /usr/local/bin/
+
+      - name: Setup GitHub Pages Configurations
+        id: pages
+        uses: actions/configure-pages@v4
+
+      # Build with Trunk, specifying the correct subdirectory path for GH Pages
+      - name: Build WASM Web Application
+        run: |
+          trunk build --release --public-url "${{ steps.pages.base_path }}/"
+
+      - name: Upload Deployment Artifacts
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
