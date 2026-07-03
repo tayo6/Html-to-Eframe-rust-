@@ -1,7 +1,5 @@
-# Html-to-Eframe-rust-
-
-# Delay VST Plugin Replica (Rust + eframe)
-## by Tayo ##
+# Delay VST Plugin(Rust + eframe)
+**By Tayo**
 
 A web-based replica of a Delay VST plugin built entirely in Rust using the [`egui`](https://github.com/emilk/egui) / `eframe` framework and compiled to WebAssembly (Wasm).
 
@@ -70,4 +68,4 @@ MIT License
 1. In your GitHub Codespace, click the **New File** button in your file explorer (on the left side).
 2. Name the file exactly **`README.md`** (all caps for README).
 3. Paste the code above into the file and save it.
-4. Commit and push your changes to GitHub!
+4. Commit and push 💪 
