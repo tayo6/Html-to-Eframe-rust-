@@ -63,9 +63,3 @@ MIT License
 
 
 ***
-
-### How to add this to your project:
-1. In your GitHub Codespace, click the **New File** button in your file explorer (on the left side).
-2. Name the file exactly **`README.md`** (all caps for README).
-3. Paste the code above into the file and save it.
-4. Commit and push 💪 
